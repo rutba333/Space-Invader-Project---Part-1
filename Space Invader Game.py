@@ -59,6 +59,7 @@ bulletImg=pygame.image.load('bullet.png')
 bulletX=0
 bulletY=playerY
 bulletX_change=BULLET_SPEED_Y
+bulletY_change=BULLET_SPEED_Y
 bullet_state="ready"
 
 #score
@@ -97,6 +98,95 @@ def fire_bullet(x,y):
     global bullet_state
     bullet_state="fire"
     screen.blit(bulletImg,(x+16,y+10))
+
+
+def isCollision(obj1X,obj1Y,obj2X,obj2Y,distance_threshold):
+    distance=math.sqrt(math.pow(obj1X-obj2X,2)+math.pow(obj1Y-obj2Y,2))
+    return distance<distance_threshold
+
+
+#game loop
+running=True
+game_over_flag=False
+
+while running:
+    screen.fill((0,0,0))
+    screen.blit(background,(0,0))
+
+    for event in pygame.event.get():
+        if event.type==pygame.QUIT:
+            running=False
+        
+        if event.type==pygame.KEYDOWN and not game_over_flag:
+            if event.key==pygame.K_LEFT:
+                playerX_change= -2
+            if event.key==pygame.K_RIGHT:
+                playerX_change= 2
+            if event.key==pygame.K_SPACE:
+                if bullet_state=="ready":
+                    bulletSound=mixer.Sound("laser.wav")
+                    bulletSound.play()
+                    bulletX=playerX
+                    fire_bullet(bulletX,bulletY)
+
+        if event.type==pygame.KEYUP:
+            if event.key==pygame.K_LEFT or event.key==pygame.K_RIGHT:
+                playerX_change=0
+
+    if game_over_flag:
+        #stop the background music whwn the game is over
+        mixer.music.stop()
+        game_over_text()
+        pygame.display.update()
+        continue
+
+    #player movement
+    playerX +=playerX_change
+    playerX=max(0,min(playerX,SCREEN_WIDTH-64))#ensure player stays within screen
+
+    #enemy movement
+    for i in range(num_of_enemies):
+        #game overcondition: enemy touches the player
+        if isCollision(enemyX[i],enemyY[i],playerX,playerY,COLLISION_DISTANCE+20):
+            for j in range(num_of_enemies):
+                enemyY[j]=2000 #move all enemies off-screen
+                game_over_flag=True
+                break
+
+        enemyX[i] += enemyX_change[i]
+        if enemyX[i] <= 0 or enemyX[i] >= SCREEN_WIDTH-64:
+            enemyX_change[i] *= -1
+            enemyY[i] += enemyY_change[i]
+
+        #collison: bullet hits enemy
+        collision=isCollision(enemyX[i],enemyY[i],bulletX,bulletY,COLLISION_DISTANCE)
+        if collision:
+            bulletY=playerY
+            bullet_state="ready"
+            score_value += 1
+            enemyX[i]=random.randint(0,SCREEN_WIDTH-64)
+            enemyY[i]=random.randint(ENEMY_START_Y_MIN,ENEMY_START_Y_MAX)
+
+        enemy(enemyX[i],enemyY[i],i)
+
+    #bullet movement
+    if bulletY <=0:
+        bulletY=playerY
+        bullet_state="ready"
+
+    if bullet_state=="fire":
+        fire_bullet(bulletX,bulletY)
+        bulletY -= bulletY_change
+
+    player(playerX,playerY)
+    show_score(textX,textY)
+    pygame.display.update()
+
+    #cap the frame rate
+    clock.tick(60)
+
+
+
 
 
 
